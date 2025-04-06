@@ -1,7 +1,10 @@
 import pygame
 
+pygame.init()
+
 WIDTH, HEIGHT = 900, 900
 SQUARE_SIZE = 300
+TEXT_COLOUR = "#FFFFFF"
 
 def ScreenToBoard(position):
     return (position[0] // SQUARE_SIZE, position[1] // SQUARE_SIZE)
@@ -42,7 +45,8 @@ class Game:
         self.running = True
 
         self.x_to_move = True
-
+        self.game_over = False
+        self.game_over_message = ""
 
         # 9-bit integer to represent each tile
         self.board = 0b000000000
@@ -78,16 +82,13 @@ class Game:
         return False
 
     def IsDraw(self):
-        if self.board & 0b111111111:
-            return True
-        else:
-            return False
+        return self.board == 0b111111111 and not (self.IsWinner("x") or self.IsWinner("o"))
 
     def HandleEvents(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-            if event.type == pygame.MOUSEBUTTONDOWN:
+            if event.type == pygame.MOUSEBUTTONDOWN and not self.game_over:
                 self.ProcessClick(event.pos)
                 self.x_to_move = not self.x_to_move # switch turns
 
@@ -106,14 +107,22 @@ class Game:
             print("Boundary error") # validation
     
     def Update(self):
+        self.board = self.player_x | self.player_o
+
         if self.IsWinner("x"):
-            print("X has won!")
+            self.game_over = True
+            self.game_over_message = "X has won!"
+            print(self.game_over_message)
 
-        elif self.IsWinner("o"):
-            print("O has won!")
+        if self.IsWinner("o"):
+            self.game_over = True
+            self.game_over_message = "O has won!"
+            print(self.game_over_message)
 
-        elif self.IsDraw():
-            print("Tie!")
+        if self.IsDraw():
+            self.game_over = True
+            self.game_over_message = "Draw!"
+            print(self.game_over_message)
 
     def Render(self):
         # square = pygame.Rect(screen_position[0], screen_position[1], SQUARE_SIZE, SQUARE_SIZE)
@@ -128,6 +137,11 @@ class Game:
             if render_mask & self.player_o << tile:
                 square = pygame.Rect(x * SQUARE_SIZE, y * SQUARE_SIZE, SQUARE_SIZE, SQUARE_SIZE)
                 pygame.draw.rect(self.screen, "blue", square)
+
+        game_over_font = pygame.font.SysFont("Arial", 30)
+        game_over_text = game_over_font.render(self.game_over_message, True, TEXT_COLOUR)
+        self.screen.blit(game_over_text, (10, 10))   
+        
         pygame.display.flip()
 
 # tiles  |  coord
