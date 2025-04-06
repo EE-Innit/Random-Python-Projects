@@ -4,6 +4,7 @@ pygame.init()
 
 WIDTH, HEIGHT = 500, 500
 SQUARE_SIZE = 100
+TEXT_COLOUR = "#FFFFFF"
 
 def ScreenToBoard(position: tuple): # translates coordinates into the board's simplified coordinate plane
     return (position[0] // SQUARE_SIZE, position[1] // SQUARE_SIZE)
@@ -22,7 +23,7 @@ class Board:
             for column in range(3):
                 square = pygame.Rect(SQUARE_SIZE + SQUARE_SIZE * row, SQUARE_SIZE + SQUARE_SIZE * column, SQUARE_SIZE, SQUARE_SIZE)
                 pygame.draw.rect(self.screen, "yellow", square, 2)
-    
+
     def MarkSquare(self, mark):
         self.grid[mark.position] = mark
 
@@ -32,12 +33,12 @@ class Board:
             if mark is not None:
                 marks.append(mark)
         return marks
-    
+
     def RetrieveMarkPositions(self, type):
-        marks = []
+        marks = set()
         for mark in self.grid.values():
             if mark is not None and mark.type == type:
-                marks.append(mark.position)
+                marks.add(mark.position)
         return marks
 
 class Mark:
@@ -51,7 +52,38 @@ class Mark:
 
 class Engine:
     def __init__(self):
-        pass
+        self.game_outcome = ""
+        self.conditions = self.SetupConditions()
+
+    def SetupConditions(self):
+        # establish an empty array for storing sets of possible outcomes
+        conditions = []
+
+        # PD conditions
+        PD = {(1, 3), (2, 2), (3, 1)}
+        conditions.append(PD)
+
+        # ND conditions
+        ND = {(1, 1), (2, 2), (3, 3)}
+        conditions.append(ND)
+
+        # V conditions
+        V1 = {(1, 1), (1, 2), (1, 3)}
+        V2 = {(2, 1), (2, 2), (2, 3)}
+        V3 = {(3, 1), (3, 2), (3, 3)}
+        conditions.append(V1)
+        conditions.append(V2)
+        conditions.append(V3)
+
+        # H conditions
+        H1 = {(1, 1), (2, 1), (3, 1)}
+        H2 = {(1, 2), (2, 2), (3, 2)}
+        H3 = {(1, 3), (2, 3), (3, 3)}
+        conditions.append(H1)
+        conditions.append(H2)
+        conditions.append(H3)
+
+        return conditions
 
     def IsWin(self, type, board):
         mark_positions = board.RetrieveMarkPositions(type)
@@ -59,23 +91,9 @@ class Engine:
         # base case: if there are less than three marks there cannot be a win
         if len(mark_positions) < 3:
             return False
-
-        # positive diagonal (x, y) (x + 1, y - 1) (x + 2, y - 2)
-        if (1, 3) and (2, 2) and (3, 1) in mark_positions:
-            return True
-        
-        # negative diagonal (x, y) (x + 1, y + 1) (x + 2, y + 2)
-        if (1, 1) and (2, 2) and (3, 3) in mark_positions:
-            return True
-
-        # verticals (x, y, y + 1, y + 2)
-        for x in range(1, 4):
-            if (x, 1) and (x, 2) and (x, 3) in mark_positions:
-                return True
             
-        # horizontals (x, x + 1, x + 2, y)
-        for y in range(1, 4):
-            if (1, y) and (2, y) and (3, y) in mark_positions:
+        for condition in self.conditions:
+            if condition & mark_positions == condition: # if the intersection of the set and positions are equal to the set, condition is satisfied
                 return True
 
         return False # by exhaustion
@@ -108,14 +126,11 @@ class Game:
                     return
                 click_position = ScreenToBoard(event.pos)
                 self.HandleClick(click_position)
-            # if event.type == pygame.KEYDOWN:
-            #     if event.key == pygame.K_j:
-            #         marks = self.board.RetrieveMarkPositions("X")
-            #         print(marks)
-            #         print((2, 2) and (3, 1) in marks)
-            #     if event.key == pygame.K_k:
-            #         print(self.board.RetrieveMarkPositions("O"))
-                
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_j:
+                    print(f"X: {self.board.RetrieveMarkPositions("X")}")
+                if event.key == pygame.K_k:
+                    print(f"O: {self.board.RetrieveMarkPositions("O")}")
 
     def HandleClick(self, click_position):
         if 0 < click_position[0] < 4 and 0 < click_position[1] < 4: # if within the game board
@@ -153,12 +168,16 @@ class Game:
 
         # move rendering
         move_font = pygame.font.SysFont("Arial", 30)
-        move_text = move_font.render(str(self.move), True, "#FFFFFF")
+        move_text = move_font.render(str(self.move), True, TEXT_COLOUR)
         self.screen.blit(move_text, (10, 10))
 
         game_over_font = pygame.font.SysFont("Arial", 30)
-        game_over_text = game_over_font.render(self.game_over_message, True, "#FFFFFF")
+        game_over_text = game_over_font.render(self.game_over_message, True, TEXT_COLOUR)
         self.screen.blit(game_over_text, (10, 50))
+
+        game_outcome_font = pygame.font.SysFont("Arial", 30)
+        game_outcome_text = game_outcome_font.render(self.engine.game_outcome, True, TEXT_COLOUR)
+        self.screen.blit(game_outcome_text, (10, 100))
 
         pygame.display.flip()
 
@@ -173,10 +192,11 @@ class Game:
                 self.game_over_message = "O WON"
                 self.next_move_reset = True
         else:
+            self.game_over_message = "DRAW"
             self.next_move_reset = True
 
     def Reset(self):
-        print("[Reset] Restarting game...")
+        #print("[Reset] Restarting game...")
         self.x_squares.clear()
         self.o_squares.clear()
         self.move = 0
@@ -199,7 +219,3 @@ main()
 
 ## X - ORANGE
 ## O - BLUE
-
-# (1, 1) (2, 1) (3, 1)
-# (1, 2) (2, 2) (3, 2)
-# (1, 3) (2, 3) (3, 3)
